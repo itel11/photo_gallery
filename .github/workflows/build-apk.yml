@@ -1,0 +1,102 @@
+name: Build Ionic Android APK
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Checkout source code
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # 3. Install npm dependencies
+      - name: Install npm dependencies
+        run: npm ci
+
+      # 4. Build Ionic/Vue application
+      - name: Build Ionic application
+        run: npm run build
+
+      # 5. Setup Java 21
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      # 6. Check Java
+      - name: Check Java version
+        run: |
+          java -version
+          javac -version
+          echo "JAVA_HOME=$JAVA_HOME"
+
+      # 7. Install Capacitor Android if needed
+      - name: Check Capacitor Android
+        run: |
+          if npm ls @capacitor/android --depth=0 > /dev/null 2>&1; then
+            echo "@capacitor/android is already installed."
+          else
+            echo "@capacitor/android is not installed."
+            echo "Installing @capacitor/android..."
+            npm install @capacitor/android
+          fi
+
+      # 8. Create Android platform if needed
+      - name: Add Android platform
+        run: |
+          if [ -d "android" ]; then
+            echo "Android platform already exists."
+          else
+            echo "Android platform does not exist."
+            echo "Creating Android platform..."
+            npx cap add android
+          fi
+
+      # 9. Sync Capacitor
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      # 10. Make Gradle executable
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
+
+      # 11. Check Gradle
+      - name: Check Gradle version
+        working-directory: android
+        run: ./gradlew --version
+
+      # 12. Build Debug APK
+      - name: Build Android APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      # 13. Show generated APK
+      - name: Check APK
+        run: |
+          echo "Generated APK:"
+          ls -lah android/app/build/outputs/apk/debug/
+
+      # 14. Rename APK
+      - name: Rename APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk PhotoGallery.apk
+
+      # 15. Upload APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Photo-Gallery-APK
+          path: PhotoGallery.apk
+          if-no-files-found: error
+          retention-days: 30
