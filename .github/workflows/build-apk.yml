@@ -1,4 +1,4 @@
-name: Build Ionic Android APK
+name: Build Ionic Android APK - Hazeal Ann Gutierrez
 
 on: [push, workflow_dispatch]
 
